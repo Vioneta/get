@@ -1,0 +1,66 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get the main tag
+        id: get_tag
+        run: echo tag=${GITHUB_REF/refs\/tags\//} >> $GITHUB_OUTPUT
+
+      - name: Download and consolidate packages
+        id: package
+        run: |
+          MAIN_TAG=${{ steps.get_tag.outputs.tag }}
+          echo "Main tag: $MAIN_TAG"
+
+          source ./vionetaos-tags
+
+          mkdir /tmp/packages
+          pushd /tmp/packages
+
+          # List of architectures
+          TARGET_ARCH_LIST=("amd64" "arm-7" "arm64")
+          for TARGET_ARCH in ${TARGET_ARCH_LIST[@]}; do
+            echo "Downloading packages for $TARGET_ARCH"
+            URLS=(
+                "https://github.com/Vioneta/VionetaOS-AppManagement/releases/download/${CASAOS_APP_MANAGEMENT_TAG}/linux-${TARGET_ARCH}-vionetaos-app-management-${CASAOS_APP_MANAGEMENT_TAG}.tar.gz"
+                "https://github.com/Vioneta/VionetaOS-AppStore/releases/download/${CASAOS_APP_STORE_TAG}/linux-all-appstore-${CASAOS_APP_STORE_TAG}.tar.gz"
+                "https://github.com/Vioneta/VionetaOS-CLI/releases/download/${CASAOS_CLI_TAG}/linux-${TARGET_ARCH}-vionetaos-cli-${CASAOS_CLI_TAG}.tar.gz"
+                "https://github.com/Vioneta/VionetaOS-Gateway/releases/download/${CASAOS_GATEWAY_TAG}/linux-${TARGET_ARCH}-vionetaos-gateway-${CASAOS_GATEWAY_TAG}.tar.gz"
+                "https://github.com/Vioneta/VionetaOS-LocalStorage/releases/download/${CASAOS_LOCAL_STORAGE_TAG}/linux-${TARGET_ARCH}-vionetaos-local-storage-${CASAOS_LOCAL_STORAGE_TAG}.tar.gz"
+                "https://github.com/Vioneta/VionetaOS-MessageBus/releases/download/${CASAOS_MESSAGE_BUS_TAG}/linux-${TARGET_ARCH}-vionetaos-message-bus-${CASAOS_MESSAGE_BUS_TAG}.tar.gz"
+                "https://github.com/Vioneta/VionetaOS-UI/releases/download/${CASAOS_UI_TAG}/linux-all-vionetaos-${CASAOS_UI_TAG}.tar.gz"
+                "https://github.com/Vioneta/VionetaOS-UserService/releases/download/${CASAOS_USER_SERVICE_TAG}/linux-${TARGET_ARCH}-vionetaos-user-service-${CASAOS_USER_SERVICE_TAG}.tar.gz"
+                "https://github.com/Vioneta/VionetaOS/releases/download/${CASAOS_TAG}/linux-${TARGET_ARCH}-vionetaos-${CASAOS_TAG}.tar.gz"
+            )
+
+            for URL in ${URLS[@]}; do
+              echo "Downloading $URL"
+              wget $URL
+            done
+
+            tar zcvf vionetaos-${TARGET_ARCH}-${MAIN_TAG}.tar.gz linux-*.tar.gz
+            sha256sum vionetaos-${TARGET_ARCH}-${MAIN_TAG}.tar.gz >> checksums.txt
+            rm linux-*.tar.gz
+          done
+
+      - uses: softprops/action-gh-release@v1
+        if: steps.package.outcome == 'success'
+        with:
+          files: |
+            /tmp/packages/vionetaos-*.tar.gz
+            /tmp/packages/checksums.txt
+          draft: true
+          prerelease: true
+          fail_on_unmatched_files: true
