@@ -1,6 +1,6 @@
 # get
 
-Installation scripts for IceWhale's products.
+Installation scripts for Vioneta's products.
 
 - [./vionetaos.sh](/vionetaos.sh) ( [🕵inspect](https://github.com/Vioneta/get/blob/main/vionetaos.sh) ) – for [VionetaOS](https://vionetaos.io/)
 
